@@ -1,0 +1,62 @@
+# config/model_config.yaml
+# Configuration for model training
+
+# Dataset to use
+dataset_type: "kaggle_housing"
+
+# Target variable settings
+target_column: "SalePrice"
+log_transform_target: true
+
+# MLflow tracking
+mlflow_tracking_uri: "mlruns"
+experiment_name: "housing_price_prediction"
+
+# Model configurations
+models:
+  ridge:
+    alpha: 0.5
+    solver: "auto"
+    random_state: 42
+
+  lasso:
+    alpha: 0.001
+    max_iter: 1000
+    random_state: 42
+
+  elastic_net:
+    alpha: 0.001
+    l1_ratio: 0.5
+    max_iter: 1000
+    random_state: 42
+
+  svr:
+    kernel: "rbf"
+    C: 10.0
+    epsilon: 0.1
+    gamma: "scale"
+
+  random_forest:
+    n_estimators: 100
+    max_depth: 20
+    min_samples_split: 2
+    min_samples_leaf: 1
+    random_state: 42
+
+  gradient_boosting:
+    n_estimators: 200
+    learning_rate: 0.05
+    max_depth: 4
+    min_samples_split: 2
+    subsample: 0.8
+    random_state: 42
+
+# Cross-validation settings
+cv_folds: 5
+cv_shuffle: true
+cv_random_state: 42
+
+# Evaluation settings
+evaluation:
+  test_size: 0.2
+  random_state: 42

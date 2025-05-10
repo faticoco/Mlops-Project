@@ -1,0 +1,24 @@
+# config/data_config.yaml
+# Configuration for data processing
+
+# Data paths
+raw_data_path: "data/raw/"
+processed_data_path: "data/processed/"
+features_path: "data/features/"
+
+# Data processing options
+drop_outliers: true
+log_transform_target: true
+
+# Outlier thresholds for Ames Housing
+outlier_thresholds:
+  GrLivArea:
+    upper: 4500
+  SalePrice:
+    lower_percentile: 0.01
+    upper_percentile: 0.99
+
+# Missing value handling
+missing_value_strategy:
+  numeric: "median"
+  categorical: "most_frequent"
