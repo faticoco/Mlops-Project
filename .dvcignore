@@ -1,0 +1,10 @@
+# Add patterns of files dvc should ignore, which is useful when there are large files that are not part of the ML pipeline
+dvc.ignore.add('*.mp3')
+dvc.ignore.add('*.mp4')
+dvc.ignore.add('*.mov')
+dvc.ignore.add('*.avi')
+dvc.ignore.add('*.jpg')
+dvc.ignore.add('*.png')
+dvc.ignore.add('*.gif')
+dvc.ignore.add('*.mpg')
+dvc.ignore.add('*.mpeg')
