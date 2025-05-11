@@ -65,6 +65,9 @@ mlflow/
 ehthumbs.db
 Thumbs.db
 .venv/
+mlartifacts/
+data/
+
 
 
 
@@ -92,3 +95,4 @@ frontend/*.njsproj
 frontend/*.sln
 frontend/.vite/
 frontend/*.sw?
+**.pkl
