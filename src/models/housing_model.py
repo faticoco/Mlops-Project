@@ -76,28 +76,96 @@ class HousingModel:
     
     def prepare_data_for_training(self, X: pd.DataFrame) -> pd.DataFrame:
         """
-        Prepare the data for training by handling categorical features.
+        Prepare the data for training by handling categorical features and missing values.
         """
         try:
+            # Check for missing values before any transformation
+            missing_before = X.isnull().sum().sum()
+            if missing_before > 0:
+                logger.info(f"Found {missing_before} missing values in input data")
+            
             # Identify numeric and categorical columns
             numeric_cols = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
             categorical_cols = X.select_dtypes(include=['object', 'category', 'bool']).columns.tolist()
             
             logger.info(f"Identified {len(numeric_cols)} numeric and {len(categorical_cols)} categorical columns")
             
+            # Create a new DataFrame for processed data
+            X_processed = X.copy()
+            
+            # Handle missing values in numeric columns
+            if len(numeric_cols) > 0:
+                # Fill missing numeric values with median
+                for col in numeric_cols:
+                    if X_processed[col].isnull().any():
+                        median_val = X_processed[col].median()
+                        X_processed[col] = X_processed[col].fillna(median_val)
+                        logger.info(f"Filled missing values in {col} with median: {median_val}")
+            
+            # Handle missing values in categorical columns
             if len(categorical_cols) > 0:
                 logger.info(f"Categorical columns found: {categorical_cols[:5]}... (showing first 5)")
                 
-                # Create a one-hot encoder for categorical columns
-                X_processed = pd.get_dummies(X, columns=categorical_cols, drop_first=True)
-                logger.info(f"Data shape after one-hot encoding: {X_processed.shape}")
+                # Fill missing categorical values with most frequent value
+                for col in categorical_cols:
+                    if X_processed[col].isnull().any():
+                        mode_val = X_processed[col].mode()[0]
+                        X_processed[col] = X_processed[col].fillna(mode_val)
+                        logger.info(f"Filled missing values in {col} with mode: {mode_val}")
                 
-                return X_processed
-            else:
-                logger.info("No categorical columns found, using data as is")
-                return X
+                # Create a one-hot encoder for categorical columns
+                X_processed = pd.get_dummies(X_processed, columns=categorical_cols, drop_first=True)
+                logger.info(f"Data shape after one-hot encoding: {X_processed.shape}")
+            
+            # Final check for any remaining missing values
+            missing_after = X_processed.isnull().sum().sum()
+            if missing_after > 0:
+                logger.warning(f"There are still {missing_after} missing values after preprocessing")
+                
+                # As a last resort, fill any remaining NaN values with 0
+                X_processed = X_processed.fillna(0)
+                logger.info("Filled any remaining missing values with 0")
+            
+            return X_processed
         except Exception as e:
             logger.error(f"Error preparing data for training: {e}")
+            raise
+    
+    def create_model_pipelines(self) -> Dict[str, Pipeline]:
+        """
+        Create scikit-learn pipelines for each model with proper preprocessing steps.
+        """
+        try:
+            # Create a simple imputer for any remaining NaN values
+            imputer = SimpleImputer(strategy='mean')
+            
+            # Define models with preprocessing pipelines
+            pipelines = {
+                "LinearRegression": Pipeline([
+                    ('imputer', imputer),
+                    ('model', LinearRegression())
+                ]),
+                "Ridge": Pipeline([
+                    ('imputer', imputer),
+                    ('model', Ridge(alpha=1.0))
+                ]),
+                "Lasso": Pipeline([
+                    ('imputer', imputer),
+                    ('model', Lasso(alpha=0.1))
+                ]),
+                "RandomForest": Pipeline([
+                    ('imputer', imputer),
+                    ('model', RandomForestRegressor(n_estimators=100, random_state=42))
+                ]),
+                "GradientBoosting": Pipeline([
+                    ('imputer', imputer),
+                    ('model', GradientBoostingRegressor(n_estimators=100, random_state=42))
+                ])
+            }
+            
+            return pipelines
+        except Exception as e:
+            logger.error(f"Error creating model pipelines: {e}")
             raise
     
     def train_and_evaluate_models(self, X: pd.DataFrame, y: pd.Series) -> Dict[str, Any]:
@@ -112,7 +180,7 @@ class HousingModel:
             Dictionary with best model and metrics
         """
         try:
-            # Prepare data for training (handle categorical features)
+            # Prepare data for training (handle categorical features and missing values)
             X_prepared = self.prepare_data_for_training(X)
             
             # Split data into train and test sets
@@ -121,14 +189,8 @@ class HousingModel:
             )
             logger.info(f"Split data into train and test sets: X_train={X_train.shape}, X_test={X_test.shape}")
             
-            # Define models to train
-            models = {
-                "LinearRegression": LinearRegression(),
-                "Ridge": Ridge(alpha=1.0),
-                "Lasso": Lasso(alpha=0.1),
-                "RandomForest": RandomForestRegressor(n_estimators=100, random_state=42),
-                "GradientBoosting": GradientBoostingRegressor(n_estimators=100, random_state=42)
-            }
+            # Create model pipelines
+            model_pipelines = self.create_model_pipelines()
             
             # Train and evaluate each model
             best_model = None
@@ -139,16 +201,17 @@ class HousingModel:
             # Track with MLflow
             with mlflow.start_run(experiment_id=self.experiment_id, run_name="model_comparison") as run:
                 mlflow.log_param("data_shape", X.shape)
+                mlflow.log_param("prepared_data_shape", X_prepared.shape)
                 mlflow.log_param("train_test_split_ratio", 0.8)
                 
-                for model_name, model in models.items():
+                for model_name, pipeline in model_pipelines.items():
                     logger.info(f"Training {model_name}...")
                     
                     # Train the model
-                    model.fit(X_train, y_train)
+                    pipeline.fit(X_train, y_train)
                     
                     # Evaluate on test set
-                    y_pred = model.predict(X_test)
+                    y_pred = pipeline.predict(X_test)
                     
                     # Calculate metrics
                     mse = mean_squared_error(y_test, y_pred)
@@ -159,8 +222,12 @@ class HousingModel:
                     # Log metrics
                     logger.info(f"{model_name} - RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}")
                     
+                    # Extract the actual model from the pipeline
+                    model = pipeline.named_steps['model']
+                    
                     # Store results
                     all_results[model_name] = {
+                        "pipeline": pipeline,
                         "model": model,
                         "metrics": {
                             "mse": mse,
@@ -185,12 +252,12 @@ class HousingModel:
                         })
                         
                         # Log model
-                        mlflow.sklearn.log_model(model, f"{model_name}_model")
+                        mlflow.sklearn.log_model(pipeline, f"{model_name}_pipeline")
                     
                     # Update best model if this one is better
                     if r2 > best_r2:
                         best_r2 = r2
-                        best_model = model
+                        best_model = pipeline
                         best_model_name = model_name
                 
                 # Log best model name
