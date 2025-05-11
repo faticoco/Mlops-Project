@@ -1,0 +1,48 @@
+version: "3"
+
+services:
+  airflow:
+    image: airflow-dvc
+    ports:
+      - "8083:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
+      - ./config:/opt/airflow/config
+      - ./logs:/opt/airflow/logs
+      - ./mlflow:/opt/airflow/mlflow
+      - ./models:/opt/airflow/models
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=true
+      - AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/dags
+    command: >
+      bash -c "
+      airflow db init &&
+      airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com || true &&
+      airflow webserver & airflow scheduler
+      "
+    depends_on:
+      - postgres
+
+  mlflow:
+    image: python:3.9-slim
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlflow:/mlflow
+    command: bash -c "pip install mlflow==2.8.1 && mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri /mlflow"
+    depends_on:
+      - airflow
+
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    ports:
+      - "5432:5432"
