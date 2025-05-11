@@ -1,5 +1,5 @@
 dvc
-apache-airflow
+apache-airflow==2.6.3
 requests
 pandas
 numpy
@@ -13,3 +13,4 @@ pyyaml
 pylint
 pytest
 black
+psycopg2-binary
