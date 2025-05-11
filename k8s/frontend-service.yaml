@@ -8,8 +8,8 @@ spec:
   selector:
     app: house-pred-frontend
   ports:
-  - port: 80
-    targetPort: 3000
+  - port: 5173
+    targetPort: 5173
     protocol: TCP
     name: http
-  type: LoadBalancer  # Exposes the service externally
+  type: NodePort  # Exposes the service externally

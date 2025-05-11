@@ -28,7 +28,7 @@ spec:
             memory: "256Mi"
         env:
         - name: MLFLOW_TRACKING_URI
-          value: "http://localhost:5000"  # Adjust if your MLflow service has a different name
+          value: "http://host.minikube.internal:5000"  # Adjust if your MLflow service has a different name
         readinessProbe:
           httpGet:
             path: /health

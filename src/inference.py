@@ -16,6 +16,8 @@ def load_model(model_name="housing_predict"):
     """
     try:
         mlflow_uri = os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5000")
+        print(mlflow_uri)
+
         mlflow.set_tracking_uri(mlflow_uri)
         
         model_uri = f"models:/{model_name}/Production"
