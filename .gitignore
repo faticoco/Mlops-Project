@@ -95,3 +95,4 @@ frontend/*.njsproj
 frontend/*.sln
 frontend/.vite/
 frontend/*.sw?
+**.pkl
