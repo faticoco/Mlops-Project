@@ -1,4 +1,3 @@
-# airflow/dags/housing_data_pipeline_dag.py
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -7,8 +6,9 @@ import os
 import sys
 
 # Add the project root directory to the path to import the modules
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))  
-
+dags_folder = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(dags_folder, "../.."))  # Adjust this path as needed
+sys.path.append(project_root)
 from src.data.dataset_api import DatasetAPI
 from src.data.housing_processor import HousingDataProcessor
 
@@ -33,13 +33,13 @@ dag = DAG(
     tags=['ml', 'housing', 'regression'],
 )
 
-# Function to download Kaggle Housing data
+# Function to download Housing data from GitHub
 def download_housing_data(**kwargs):
-    """Download housing data from Kaggle/GitHub source"""
+    """Download housing data from GitHub source"""
     data_dir = kwargs.get('data_dir', 'data')
     
     api = DatasetAPI(data_dir=data_dir)
-    data_paths = api.download_kaggle_housing_data()
+    data_paths = api.download_housing_data_from_github()
     
     # Return just the training data path
     return data_paths['train']
@@ -53,9 +53,20 @@ def process_housing_data(**kwargs):
     
     # Get the input data path from XCom
     input_file = ti.xcom_pull(task_ids='download_housing_data')
+    
+    # Extract just the filename from the path
     input_filename = os.path.basename(input_file)
     
+    # Create a symlink or copy file to raw_data_path if needed
     processor = HousingDataProcessor(config_path)
+    
+    # Check if file exists in raw_data_path, skip symlink creation if it does
+    raw_file_path = os.path.join(processor.raw_data_path, input_filename)
+    # Check if file exists in raw_data_path, remove it if it does
+    if os.path.exists(raw_file_path):
+        os.remove(raw_file_path)
+        os.symlink(input_file, raw_file_path)
+    
     result_paths = processor.process_ames_housing_pipeline(input_filename, output_base)
     
     # Return paths for XCom
@@ -85,7 +96,7 @@ download_housing_data = PythonOperator(
     task_id='download_housing_data',
     python_callable=download_housing_data,
     op_kwargs={
-        'data_dir': '{{ var.value.data_dir }}'
+        'data_dir': '{{ var.value.data_dir | default("data/raw") }}'
     },
     dag=dag,
 )
@@ -104,13 +115,31 @@ update_dvc = BashOperator(
     task_id='update_dvc',
     bash_command='''
     cd ${AIRFLOW_HOME}/../../
-    dvc add data/processed/cleaned_housing_{{ ds_nodash }}.csv
-    dvc add data/features/features_housing_{{ ds_nodash }}.csv
-    dvc add data/features/X_housing_{{ ds_nodash }}.csv
-    dvc add data/features/y_housing_{{ ds_nodash }}.csv
+    
+    # Check if files exist before adding
+    for file in \
+      data/processed/cleaned_housing_{{ ds_nodash }}.csv \
+      data/features/features_housing_{{ ds_nodash }}.csv \
+      data/features/X_housing_{{ ds_nodash }}.csv \
+      data/features/y_housing_{{ ds_nodash }}.csv
+    do
+      if [ -f "$file" ]; then
+        dvc add "$file"
+      else
+        echo "Warning: File not found: $file"
+      fi
+    done
+    
+    # Push changes to remote storage
     dvc push
-    git add data/.gitignore data/processed/.gitignore data/features/.gitignore
-    git commit -m "Update Housing data: {{ ds }}"
+    
+    # Only commit if there are changes
+    if [ -n "$(git status --porcelain)" ]; then
+      git add data/.gitignore data/processed/.gitignore data/features/.gitignore
+      git commit -m "Update Housing data: {{ ds }}"
+    else
+      echo "No changes to commit"
+    fi
     ''',
     dag=dag,
 )
