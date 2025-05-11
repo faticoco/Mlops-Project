@@ -33,6 +33,7 @@ ENV/
 
 # MLflow
 mlruns/
+mlflow/
 
 # DVC
 .dvc/cache

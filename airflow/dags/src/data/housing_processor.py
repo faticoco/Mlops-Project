@@ -46,18 +46,27 @@ class HousingDataProcessor:
     def load_data(self, filename: str) -> pd.DataFrame:
         """Load the housing dataset."""
         try:
-            # Ensure the filename is not already a full path
-            if not os.path.isabs(filename):
-                filepath = os.path.join(self.raw_data_path, filename)
-            else:
+            # Check if filename is an absolute path or just a filename
+            if os.path.isabs(filename):
                 filepath = filename
-
+                logger.info(f"Using absolute path: {filepath}")
+            else:
+                # Use the raw_data_path from config to build the path
+                filepath = os.path.join(self.raw_data_path, filename)
+                logger.info(f"Building path from raw_data_path: {filepath}")
+            
+            # Check if the file exists before trying to read it
+            if not os.path.exists(filepath):
+                raise FileNotFoundError(f"File does not exist: {filepath}")
+                
+            # Load the dataset
             df = pd.read_csv(filepath)
             logger.info(f"Loaded data from {filepath} with {df.shape[0]} rows and {df.shape[1]} columns")
             return df
         except Exception as e:
             logger.error(f"Error loading data: {e}")
-            raise    
+            raise
+
     def clean_ames_housing_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Clean the Ames Housing dataset.
