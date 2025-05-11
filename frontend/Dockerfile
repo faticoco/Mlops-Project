@@ -1,6 +1,5 @@
 FROM node:18-alpine
 
-# Set working directory
 WORKDIR /app
 
 # Copy package.json and package-lock.json first for better caching
@@ -12,8 +11,8 @@ RUN npm install
 # Copy the rest of the code
 COPY . .
 
-# Expose the port your app runs on
-EXPOSE 3000
+# Expose the port
+EXPOSE 5173
 
-# Command to run the app in development mode
-CMD ["npm", "run", "dev"]
+# Use the --host flag to bind to all interfaces
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
