@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # FastAPI backend service
+  backend:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://host.docker.internal:5000  # Adjust to your MLflow server if needed
+    restart: unless-stopped
+
+  # React/Next.js frontend service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000  # Backend API URL
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+networks:
+  default:
+    name: mlops-network
+    driver: bridge

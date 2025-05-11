@@ -63,7 +63,10 @@ function HousePriceForm() {
       })
       
       const result = await response.json()
-      setPrediction(result)
+      setPrediction({
+        prediction: result.predictions[0],
+        formattedPrice: result.formatted_predictions[0]
+      })
     } catch (error) {
       console.error('Error predicting house price:', error)
       alert('Failed to predict house price. Please try again.')
