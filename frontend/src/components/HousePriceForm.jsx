@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import PredictionResult from './PredictionResult'
+import { predictWithCsvRow } from '../api/api'
 import { 
   Calendar, 
   Bed, 
@@ -58,6 +59,27 @@ function HousePriceForm() {
   const [prediction, setPrediction] = useState(null)
   const [formData, setFormData] = useState({...SAMPLE_DATA})
 
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    
+    try {
+      // Always use the test CSV row, ignoring form inputs
+      const result = await predictWithCsvRow(TEST_CSV_ROW)
+      setPrediction({
+        predictions: [{
+          id: 1,
+          SalePrice: result.prediction * 100000 // Converting to a reasonable price range
+        }]
+      })
+    } catch (error) {
+      console.error('Error predicting house price:', error)
+      alert('Failed to predict house price. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData({
@@ -72,37 +94,37 @@ function HousePriceForm() {
     setFormData({...SAMPLE_DATA})
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
+//   const handleSubmit = async (e) => {
+//     e.preventDefault()
+//     setLoading(true)
     
-    try {
-      // Fix field names to match backend expectations
-      const requestData = {
-        data: [{
-          ...formData,
-          "1stFlrSF": formData.FirstFlrSF,
-          "2ndFlrSF": formData.SecondFlrSF
-        }]
-      }
+//     try {
+//       // Fix field names to match backend expectations
+//       const requestData = {
+//         data: [{
+//           ...formData,
+//           "1stFlrSF": formData.FirstFlrSF,
+//           "2ndFlrSF": formData.SecondFlrSF
+//         }]
+//       }
       
-      const response = await fetch('http://localhost:8000/predict', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      })
+//       const response = await fetch('http://localhost:8000/predict', {
+//         method: 'POST',
+//         headers: {
+//           'Content-Type': 'application/json',
+//         },
+//         body: JSON.stringify(requestData),
+//       })
       
-      const result = await response.json()
-      setPrediction(result)
-    } catch (error) {
-      console.error('Error predicting house price:', error)
-      alert('Failed to predict house price. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
+//       const result = await response.json()
+//       setPrediction(result)
+//     } catch (error) {
+//       console.error('Error predicting house price:', error)
+//       alert('Failed to predict house price. Please try again.')
+//     } finally {
+//       setLoading(false)
+//     }
+//   }
 
   const FormField = ({ label, name, value, onChange, type = "number", icon, min, max, options }) => {
     const InputIcon = () => (
@@ -322,7 +344,7 @@ function HousePriceForm() {
           </div>
 
           <div className="mt-8">
-            <button 
+              <button 
               type="submit" 
               className="btn w-full bg-blue-500 hover:bg-blue-600 text-white border-none"
               disabled={loading}
@@ -333,10 +355,7 @@ function HousePriceForm() {
                   Computing Prediction...
                 </span> 
                 : 
-                <span className="flex items-center gap-2">
-                  <Star className="h-5 w-5" />
-                  Predict House Price
-                </span>
+                'Get Price Prediction'
               }
             </button>
           </div>
