@@ -31,6 +31,9 @@ venv/
 mlops_env/
 ENV/
 
+myenv/
+frontend/node_modules/
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
