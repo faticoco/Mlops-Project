@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: house-pred-backend-service
+  labels:
+    app: house-pred-backend
+spec:
+  selector:
+    app: house-pred-backend
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  type: NodePort  # Exposes the service on a static port on each node

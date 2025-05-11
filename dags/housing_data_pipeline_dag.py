@@ -6,9 +6,9 @@ import os
 import sys
 import yaml
 
-# Add the dags directory to the path
-dags_folder = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(dags_folder)
+# Add the project root directory to the path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(project_root)
 
 # Import your modules
 from src.data.dataset_api import DatasetAPI
@@ -30,7 +30,7 @@ dag = DAG(
     'housing_data_pipeline',
     default_args=default_args,
     description='Data processing and ML pipeline for housing price prediction',
-    schedule_interval=timedelta(days=7),  # Weekly refresh
+    schedule=timedelta(days=7),  # Weekly refresh
     start_date=datetime(2023, 1, 1),
     catchup=False,
     tags=['ml', 'housing', 'regression'],

@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: house-pred-frontend
+  labels:
+    app: house-pred-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: house-pred-frontend
+  template:
+    metadata:
+      labels:
+        app: house-pred-frontend
+    spec:
+      containers:
+      - name: house-pred-frontend
+        image: ahmed93560/house-pred-frontend:latest
+        ports:
+        - containerPort: 3000
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "256Mi"
+          requests:
+            cpu: "0.2"
+            memory: "128Mi"
+        env:
+        - name: NEXT_PUBLIC_API_URL
+          value: "http://house-pred-backend-service:8000"  # Points to the backend service
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 20
+          periodSeconds: 30
