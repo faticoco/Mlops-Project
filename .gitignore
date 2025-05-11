@@ -25,11 +25,14 @@ logs
 mlflow
 venv310
 
+frontend/node_modules/
+
 # Virtual Environment
 venv310/
 venv/
 mlops_env/
 ENV/
+myenv/
 
 myenv/
 frontend/node_modules/
