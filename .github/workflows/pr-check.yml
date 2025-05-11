@@ -29,4 +29,6 @@ jobs:
 
     - name: Run unit tests
       run: |
-        python -m pytest tests/
+        pwd
+        ls -la tests/
+        python -m pytest -v ./tests/test1.py
