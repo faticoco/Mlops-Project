@@ -20,6 +20,9 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+logs
+mlflow
+venv310
 
 # Virtual Environment
 venv/
