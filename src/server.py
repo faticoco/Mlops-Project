@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Union, Optional
 import pandas as pd
@@ -7,13 +8,21 @@ import sys
 import os
 
 # Add parent directory to path to allow importing from src/model
-from src.models.inference import load_model, prepare_input_data_with_defaults, make_predictions
+from inference import load_model, prepare_input_data_with_defaults, make_predictions
 
 # Initialize FastAPI app
 app = FastAPI(
     title="Housing Price Prediction API",
     description="API for predicting housing prices using an MLflow model",
     version="1.0.0"
+)
+# Allow CORS for all origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Load the model at startup

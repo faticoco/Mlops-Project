@@ -15,7 +15,8 @@ def load_model(model_name="housing_predict"):
         Loaded model
     """
     try:
-        mlflow.set_tracking_uri("http://localhost:5000")
+        mlflow_uri = os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5000")
+        mlflow.set_tracking_uri(mlflow_uri)
         
         model_uri = f"models:/{model_name}/Production"
         loaded_model = mlflow.pyfunc.load_model(model_uri)
