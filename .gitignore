@@ -58,3 +58,4 @@ mlflow/
 .Trashes
 ehthumbs.db
 Thumbs.db
+.venv/
