@@ -1,18 +1,8 @@
 import React from 'react'
-import { DollarSign, TrendingUp, Hash } from 'lucide-react'
+import { DollarSign, TrendingUp } from 'lucide-react'
 
 function PredictionResult({ prediction }) {
-  const price = prediction?.predictions?.[0]?.SalePrice
-  
-  if (!price) return null
-  
-  // Format price with commas and no decimal places
-  const formattedPrice = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(price)
+  if (!prediction) return null
   
   return (
     <div className="mt-8 animate-fadeIn">
@@ -28,11 +18,7 @@ function PredictionResult({ prediction }) {
             <DollarSign className="h-8 w-8" />
           </div>
           <div className="stat-title text-gray-600">Estimated House Price</div>
-          <div className="stat-value text-blue-600">{formattedPrice}</div>
-          <div className="stat-desc text-gray-500 flex items-center gap-1">
-            <Hash className="h-4 w-4" />
-            ID: {prediction.predictions[0].id}
-          </div>
+          <div className="stat-value text-blue-600">{prediction.formattedPrice}</div>
         </div>
       </div>
       
