@@ -1,0 +1,4 @@
+features_path: /opt/airflow/data/features
+models_path: /opt/airflow/data/models
+processed_data_path: /opt/airflow/data/processed
+raw_data_path: /opt/airflow/data/raw

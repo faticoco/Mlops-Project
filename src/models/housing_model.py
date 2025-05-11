@@ -35,7 +35,7 @@ class HousingModel:
         os.makedirs(self.models_path, exist_ok=True)
         
         # Set MLflow tracking URI
-        mlflow_tracking_uri = os.environ.get('MLFLOW_TRACKING_URI', 'http://mlflow:5000')
+        mlflow_tracking_uri = os.environ.get('MLFLOW_TRACKING_URI', 'http://localhost:5000')
         mlflow.set_tracking_uri(mlflow_tracking_uri)
         logger.info(f"MLflow tracking URI set to: {mlflow_tracking_uri}")
         
