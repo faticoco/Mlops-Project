@@ -14,8 +14,6 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from typing import Dict, Any, List, Tuple
-import json
-from datetime import datetime
 
 # Configure logging
 logging.basicConfig(
@@ -37,7 +35,7 @@ class HousingModel:
         os.makedirs(self.models_path, exist_ok=True)
         
         # Set MLflow tracking URI
-        mlflow_tracking_uri = os.environ.get('MLFLOW_TRACKING_URI', 'http://host.docker.internal:5000')
+        mlflow_tracking_uri = os.environ.get('MLFLOW_TRACKING_URI', 'http://mlflow:5000')
         mlflow.set_tracking_uri(mlflow_tracking_uri)
         logger.info(f"MLflow tracking URI set to: {mlflow_tracking_uri}")
         
@@ -170,54 +168,6 @@ class HousingModel:
             logger.error(f"Error creating model pipelines: {e}")
             raise
     
-    def create_feature_metadata(self, X: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
-        """
-        Creates metadata about features to be stored with the model.
-        
-        Args:
-            X: Feature dataframe
-            
-        Returns:
-            Dictionary with feature metadata
-        """
-        feature_metadata = {}
-        
-        # Identify numeric and categorical columns
-        numeric_cols = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
-        categorical_cols = X.select_dtypes(include=['object', 'category', 'bool']).columns.tolist()
-        
-        # Generate metadata for each column
-        for col in X.columns:
-            col_type = "numeric" if col in numeric_cols else "categorical"
-            
-            # Basic statistics for the column
-            stats = {}
-            if col_type == "numeric":
-                stats = {
-                    "min": float(X[col].min()),
-                    "max": float(X[col].max()),
-                    "mean": float(X[col].mean()),
-                    "median": float(X[col].median()),
-                    "std": float(X[col].std())
-                }
-            else:
-                # For categorical columns, get value counts
-                top_values = X[col].value_counts().head(5).to_dict()
-                # Convert keys to strings to ensure JSON serialization
-                stats = {
-                    "top_values": {str(k): int(v) for k, v in top_values.items()},
-                    "unique_values": int(X[col].nunique())
-                }
-            
-            # Store column metadata
-            feature_metadata[col] = {
-                "type": col_type,
-                "stats": stats,
-                "missing_values": int(X[col].isnull().sum())
-            }
-        
-        return feature_metadata
-    
     def train_and_evaluate_models(self, X: pd.DataFrame, y: pd.Series) -> Dict[str, Any]:
         """
         Train and evaluate multiple regression models.
@@ -230,9 +180,6 @@ class HousingModel:
             Dictionary with best model and metrics
         """
         try:
-            # Get feature metadata before preparation
-            feature_metadata = self.create_feature_metadata(X)
-            
             # Prepare data for training (handle categorical features and missing values)
             X_prepared = self.prepare_data_for_training(X)
             
@@ -248,64 +195,15 @@ class HousingModel:
             # Train and evaluate each model
             best_model = None
             best_model_name = None
-            best_model_run_id = None
             best_r2 = -float('inf')
             all_results = {}
             
-            # Create model input schema
-            input_example = X_prepared.iloc[0:1].copy()
-            
-            # Create signature for the model
-            from mlflow.models.signature import infer_signature
-            model_signature = infer_signature(X_prepared, y)
-            
             # Track with MLflow
-            with mlflow.start_run(experiment_id=self.experiment_id, run_name="model_comparison") as parent_run:
+            with mlflow.start_run(experiment_id=self.experiment_id, run_name="model_comparison") as run:
                 mlflow.log_param("data_shape", X.shape)
                 mlflow.log_param("prepared_data_shape", X_prepared.shape)
                 mlflow.log_param("train_test_split_ratio", 0.8)
-                mlflow.log_param("target_column", y.name if hasattr(y, 'name') else "Unknown")
                 
-                # Log feature metadata as a JSON artifact
-                with open("feature_metadata.json", "w") as f:
-                    json.dump(feature_metadata, f, indent=2)
-                mlflow.log_artifact("feature_metadata.json", "metadata")
-                
-                # Create and log a data description
-                data_description = f"""
-                # Housing Price Prediction Dataset
-                
-                ## Overview
-                This dataset contains housing features used to predict house prices.
-                
-                ## Dataset Statistics
-                - Total samples: {X.shape[0]}
-                - Features: {X.shape[1]}
-                - Target: House prices
-                
-                ## Feature Types
-                - Numeric features: {len([col for col, meta in feature_metadata.items() if meta['type'] == 'numeric'])}
-                - Categorical features: {len([col for col, meta in feature_metadata.items() if meta['type'] == 'categorical'])}
-                
-                ## Data Split
-                - Training set: {X_train.shape[0]} samples ({0.8*100}%)
-                - Test set: {X_test.shape[0]} samples ({0.2*100}%)
-                
-                ## Preprocessing Steps
-                1. Missing numeric values filled with median
-                2. Missing categorical values filled with mode
-                3. Categorical variables one-hot encoded
-                4. Any remaining missing values filled with 0
-                
-                ## Date
-                - Processing date: {datetime.now().strftime('%Y-%m-%d')}
-                """
-                
-                with open("data_description.md", "w") as f:
-                    f.write(data_description)
-                mlflow.log_artifact("data_description.md", "documentation")
-                
-                # Train each model
                 for model_name, pipeline in model_pipelines.items():
                     logger.info(f"Training {model_name}...")
                     
@@ -340,10 +238,8 @@ class HousingModel:
                         "feature_names": X_prepared.columns.tolist()  # Store feature names for later use
                     }
                     
-                    # Log to MLflow with nested runs
-                    with mlflow.start_run(experiment_id=self.experiment_id, run_name=model_name, nested=True) as run:
-                        run_id = run.info.run_id
-                        
+                    # Log to MLflow
+                    with mlflow.start_run(experiment_id=self.experiment_id, run_name=model_name, nested=True):
                         # Log parameters
                         mlflow.log_params(model.get_params())
                         
@@ -355,98 +251,18 @@ class HousingModel:
                             "r2": r2
                         })
                         
-                        # Log model with more metadata
-                        model_info = mlflow.sklearn.log_model(
-                            pipeline, 
-                            f"{model_name}_pipeline",
-                            signature=model_signature,
-                            input_example=input_example
-                        )
-                        
-                        # Add description and tags
-                        description = f"Housing price prediction model using {model_name}"
-                        mlflow.set_tag("model_description", description)
-                        mlflow.set_tag("model_type", model_name)
-                        mlflow.set_tag("target_type", "regression")
-                        mlflow.set_tag("data_source", "ames_housing")
-                        
-                        # Update best model if this one is better
-                        if r2 > best_r2:
-                            best_r2 = r2
-                            best_model = pipeline
-                            best_model_name = model_name
-                            best_model_run_id = run_id
+                        # Log model
+                        mlflow.sklearn.log_model(pipeline, f"{model_name}_pipeline")
+                    
+                    # Update best model if this one is better
+                    if r2 > best_r2:
+                        best_r2 = r2
+                        best_model = pipeline
+                        best_model_name = model_name
                 
-                # Log best model info in parent run
+                # Log best model name
                 mlflow.log_param("best_model", best_model_name)
                 mlflow.log_metric("best_r2", best_r2)
-                
-                # Register the best model in MLflow Model Registry
-                if best_model_run_id:
-                    # Generate model documentation
-                    model_doc = f"""
-                    # Housing Price Prediction Model
-                    
-                    ## Model Information
-                    - Model Type: {best_model_name}
-                    - Training Date: {datetime.now().strftime('%Y-%m-%d')}
-                    
-                    ## Performance Metrics
-                    - R² Score: {best_r2:.4f}
-                    - RMSE: {all_results[best_model_name]['metrics']['rmse']:.4f}
-                    - MAE: {all_results[best_model_name]['metrics']['mae']:.4f}
-                    
-                    ## Model Usage
-                    
-                    ```python
-                    # Load the model
-                    import mlflow
-                    model = mlflow.pyfunc.load_model("models:/housing_predict/latest")
-                    
-                    # Prepare your features (X)
-                    # X should have the same columns as the training data
-                    
-                    # Make predictions
-                    predictions = model.predict(X)
-                    ```
-                    
-                    ## Input Features
-                    
-                    The model expects the following features after preprocessing:
-                    - Total features: {len(X_prepared.columns)}
-                    
-                    ## Notes
-                    - This model is automatically selected as the best performing model from {len(model_pipelines)} different algorithms
-                    - The model includes preprocessing steps in the pipeline
-                    """
-                    
-                    with open("model_documentation.md", "w") as f:
-                        f.write(model_doc)
-                    mlflow.log_artifact("model_documentation.md", "documentation")
-                    
-                    # Create a "production" model in the registry
-                    logger.info(f"Registering best model '{best_model_name}' as 'housing_predict' in MLflow Model Registry")
-                    
-                    # Use the run ID of the best model to register it
-                    model_uri = f"runs:/{best_model_run_id}/{best_model_name}_pipeline"
-                    
-                    # Register the model (creates a new version if the model already exists)
-                    registered_model = mlflow.register_model(
-                        model_uri=model_uri,
-                        name="housing_predict"
-                    )
-                    
-                    logger.info(f"Model registered successfully: {registered_model.name} (version: {registered_model.version})")
-                    
-                    # Transition the model to "Production" stage
-                    client = mlflow.tracking.MlflowClient()
-                    client.transition_model_version_stage(
-                        name="housing_predict",
-                        version=registered_model.version,
-                        stage="Production"
-                    )
-                    
-                    logger.info(f"Model 'housing_predict' (version: {registered_model.version}) transitioned to Production stage")
             
             logger.info(f"Best model: {best_model_name} with R² = {best_r2:.4f}")
             
@@ -455,19 +271,15 @@ class HousingModel:
                 "best_model_name": best_model_name,
                 "best_model": best_model,
                 "best_r2": best_r2,
-                "model_registry_name": "housing_predict",
-                "model_registry_version": registered_model.version if 'registered_model' in locals() else None,
                 "all_results": all_results,
-                "feature_names": X_prepared.columns.tolist(),  # Include feature names in results
-                "feature_metadata": feature_metadata
+                "feature_names": X_prepared.columns.tolist()  # Include feature names in results
             }
         
         except Exception as e:
             logger.error(f"Error training and evaluating models: {e}")
             raise
     
-    def save_model(self, model, model_name: str, feature_names: List[str] = None, 
-                  feature_metadata: Dict = None) -> str:
+    def save_model(self, model, model_name: str, feature_names: List[str] = None) -> str:
         """
         Save the trained model to disk.
         
@@ -475,7 +287,6 @@ class HousingModel:
             model: Trained model
             model_name: Name of the model
             feature_names: List of feature names used for training
-            feature_metadata: Dictionary with feature metadata
             
         Returns:
             Path to the saved model
@@ -492,8 +303,7 @@ class HousingModel:
                 "model": model,
                 "model_name": model_name,
                 "timestamp": timestamp,
-                "feature_names": feature_names,
-                "feature_metadata": feature_metadata
+                "feature_names": feature_names
             }
             
             # Save the model package
@@ -534,8 +344,7 @@ class HousingModel:
             best_model_path = self.save_model(
                 results["best_model"], 
                 results["best_model_name"],
-                results.get("feature_names"),
-                results.get("feature_metadata")
+                results.get("feature_names")
             )
             
             # Create report
@@ -543,8 +352,6 @@ class HousingModel:
                 "best_model_name": results["best_model_name"],
                 "best_model_path": best_model_path,
                 "best_r2": results["best_r2"],
-                "model_registry_name": results.get("model_registry_name"),
-                "model_registry_version": results.get("model_registry_version"),
                 "metrics": {
                     model_name: info["metrics"] 
                     for model_name, info in results["all_results"].items()

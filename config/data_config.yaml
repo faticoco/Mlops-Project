@@ -2,9 +2,10 @@
 # Configuration for data processing
 
 # Data paths
-raw_data_path: "data/raw/"
-processed_data_path: "data/processed/"
-features_path: "data/features/"
+
+raw_data_path: /opt/airflow/data/raw
+processed_data_path: /opt/airflow/data/processed
+features_path: /opt/airflow/data/features
 
 # Data processing options
 drop_outliers: true
