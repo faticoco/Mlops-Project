@@ -19,8 +19,7 @@ This repository contains the code and infrastructure for the machine learning sy
 1. Clone this repository
 2. Create and activate virtual environment
 3. Install dependencies from requirements.txt
-4. docker build -t airflow-dvc .
-5. docker images
+4. DOCKER COMPOSE UP
 
 ## Team
 
