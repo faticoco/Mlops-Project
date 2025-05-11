@@ -1,5 +1,5 @@
 dvc
-apache-airflow==2.6.3
+apache-airflow==3.0.0
 requests
 pandas
 numpy
