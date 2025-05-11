@@ -20,58 +20,50 @@ import {
   WavesLadder
 } from 'lucide-react'
 
-const NEIGHBORHOODS = [
-  'CollgCr', 'Veenker', 'Crawfor', 'NoRidge', 'Mitchel', 'Somerst', 
-  'NWAmes', 'OldTown', 'BrkSide', 'Sawyer', 'NridgHt', 'NAmes', 
-  'SawyerW', 'IDOTRR', 'MeadowV', 'Edwards', 'Timber', 'Gilbert', 
-  'StoneBr', 'ClearCr', 'NPkVill', 'Blmngtn', 'BrDale', 'SWISU', 'Blueste'
-]
-
-const HOUSE_STYLES = [
-  '1Story', '2Story', '1.5Fin', '1.5Unf', 'SFoyer', 'SLvl', '2.5Unf', '2.5Fin'
-]
-
-const QUALITY_RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-const CONDITION_RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-
-// Sample data for quick testing
 const SAMPLE_DATA = {
-  LotArea: 8450,
-  YearBuilt: 2003,
-  FirstFlrSF: 856,
-  SecondFlrSF: 854,
-  TotalBsmtSF: 856,
-  FullBath: 2,
+  LotArea: 12000,
+  OverallQual: 9,
+  OverallCond: 8,
+  YearBuilt: 2020,
+  YearRemodAdd: 2020,
+  GrLivArea: 3000,
+  FullBath: 3,
   HalfBath: 1,
-  BedroomAbvGr: 3,
-  TotRmsAbvGrd: 8,
-  Fireplaces: 0,
-  GarageArea: 548,
-  PoolArea: 0,
-  Neighborhood: 'CollgCr',
-  HouseStyle: '2Story',
-  OverallQual: 7,
-  OverallCond: 5
+  BedroomAbvGr: 4,
+  KitchenAbvGr: 1,
+  GarageCars: 3,
+  GarageArea: 650,
+  TotalBsmtSF: 1500,
+  FirstFlrSF: 1600,
+  SecondFlrSF: 1400,
+  OpenPorchSF: 80,
+  WoodDeckSF: 200
 }
 
 function HousePriceForm() {
   const [loading, setLoading] = useState(false)
   const [prediction, setPrediction] = useState(null)
-  const [formData, setFormData] = useState({...SAMPLE_DATA})
+  const [formData, setFormData] = useState({})
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     
     try {
-      // Always use the test CSV row, ignoring form inputs
-      const result = await predictWithCsvRow(TEST_CSV_ROW)
-      setPrediction({
-        predictions: [{
-          id: 1,
-          SalePrice: result.prediction * 100000 // Converting to a reasonable price range
-        }]
+      const requestData = {
+        houses: [formData]
+      }
+      
+      const response = await fetch('http://localhost:8000/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
       })
+      
+      const result = await response.json()
+      setPrediction(result)
     } catch (error) {
       console.error('Error predicting house price:', error)
       alert('Failed to predict house price. Please try again.')
@@ -84,9 +76,7 @@ function HousePriceForm() {
     const { name, value } = e.target
     setFormData({
       ...formData,
-      [name]: name === 'Neighborhood' || name === 'HouseStyle' 
-        ? value 
-        : parseInt(value, 10)
+      [name]: parseInt(value, 10)
     })
   }
 
@@ -94,70 +84,12 @@ function HousePriceForm() {
     setFormData({...SAMPLE_DATA})
   }
 
-//   const handleSubmit = async (e) => {
-//     e.preventDefault()
-//     setLoading(true)
-    
-//     try {
-//       // Fix field names to match backend expectations
-//       const requestData = {
-//         data: [{
-//           ...formData,
-//           "1stFlrSF": formData.FirstFlrSF,
-//           "2ndFlrSF": formData.SecondFlrSF
-//         }]
-//       }
-      
-//       const response = await fetch('http://localhost:8000/predict', {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify(requestData),
-//       })
-      
-//       const result = await response.json()
-//       setPrediction(result)
-//     } catch (error) {
-//       console.error('Error predicting house price:', error)
-//       alert('Failed to predict house price. Please try again.')
-//     } finally {
-//       setLoading(false)
-//     }
-//   }
-
-  const FormField = ({ label, name, value, onChange, type = "number", icon, min, max, options }) => {
+  const FormField = ({ label, name, value, onChange, type = "number", icon, min, max }) => {
     const InputIcon = () => (
       <div className="flex items-center ">
         {icon}
       </div>
     )
-
-    if (options) {
-      return (
-        <div className="form-control w-full">
-          <label className="label">
-            <InputIcon />
-            <span className="label-text text-gray-700 font-medium">{label}</span>
-          </label>
-          <div className="relative">
-            
-            <select
-              name={name}
-              value={value}
-              onChange={onChange}
-              className="select select-bordered w-full pl-10 bg-white border-gray-300 text-gray-700 focus:border-blue-500 focus:ring-blue-500"
-            >
-              {options.map(option => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      )
-    }
     
     return (
       <div className="form-control w-full">
@@ -208,45 +140,59 @@ function HousePriceForm() {
               onChange={handleChange}
               icon={<Square className="h-5 w-5 text-blue-400" />}
             />
+            
+            <FormField 
+              label="Overall Quality (1-10)" 
+              name="OverallQual" 
+              value={formData.OverallQual}
+              onChange={handleChange}
+              min="1"
+              max="10" 
+              icon={<Star className="h-5 w-5 text-blue-400" />}
+            />
+
+            <FormField 
+              label="Overall Condition (1-10)" 
+              name="OverallCond" 
+              value={formData.OverallCond}
+              onChange={handleChange}
+              min="1"
+              max="10"
+              icon={<Hammer className="h-5 w-5 text-blue-400" />}
+            />
 
             <FormField 
               label="Year Built" 
               name="YearBuilt" 
-              value={formData.YearBuilt} 
+              value={formData.YearBuilt}
               onChange={handleChange}
               min="1800"
-              max="2025"
+              max="2023"
               icon={<Calendar className="h-5 w-5 text-blue-400" />}
             />
 
             <FormField 
-              label="1st Floor Area (sqft)" 
-              name="FirstFlrSF" 
-              value={formData.FirstFlrSF} 
+              label="Year Remodeled" 
+              name="YearRemodAdd" 
+              value={formData.YearRemodAdd}
+              onChange={handleChange}
+              min="1800"
+              max="2023"
+              icon={<Hammer className="h-5 w-5 text-blue-400" />}
+            />
+
+            <FormField 
+              label="Above Ground Living Area (sqft)" 
+              name="GrLivArea" 
+              value={formData.GrLivArea}
               onChange={handleChange}
               icon={<Home className="h-5 w-5 text-blue-400" />}
             />
 
             <FormField 
-              label="2nd Floor Area (sqft)" 
-              name="SecondFlrSF" 
-              value={formData.SecondFlrSF} 
-              onChange={handleChange}
-              icon={<Building2 className="h-5 w-5 text-blue-400" />}
-            />
-
-            <FormField 
-              label="Basement Area (sqft)" 
-              name="TotalBsmtSF" 
-              value={formData.TotalBsmtSF} 
-              onChange={handleChange}
-              icon={<Bookmark className="h-5 w-5 text-blue-400" />}
-            />
-
-            <FormField 
               label="Full Bathrooms" 
               name="FullBath" 
-              value={formData.FullBath} 
+              value={formData.FullBath}
               onChange={handleChange}
               min="0"
               icon={<Bath className="h-5 w-5 text-blue-400" />}
@@ -255,91 +201,88 @@ function HousePriceForm() {
             <FormField 
               label="Half Bathrooms" 
               name="HalfBath" 
-              value={formData.HalfBath} 
+              value={formData.HalfBath}
               onChange={handleChange}
               min="0"
-              icon={<Thermometer className="h-5 w-5 text-blue-400" />}
+              icon={<Bath className="h-5 w-5 text-blue-400" />}
             />
 
             <FormField 
               label="Bedrooms" 
               name="BedroomAbvGr" 
-              value={formData.BedroomAbvGr} 
+              value={formData.BedroomAbvGr}
               onChange={handleChange}
               min="0"
               icon={<Bed className="h-5 w-5 text-blue-400" />}
             />
 
             <FormField 
-              label="Total Rooms" 
-              name="TotRmsAbvGrd" 
-              value={formData.TotRmsAbvGrd} 
+              label="Kitchens" 
+              name="KitchenAbvGr" 
+              value={formData.KitchenAbvGr}
               onChange={handleChange}
               min="0"
               icon={<Home className="h-5 w-5 text-blue-400" />}
             />
 
             <FormField 
-              label="Fireplaces" 
-              name="Fireplaces" 
-              value={formData.Fireplaces} 
-              onChange={handleChange}
-              min="0"
-              icon={<Thermometer className="h-5 w-5 text-blue-400" />}
-            />
-
-            <FormField 
-              label="Garage Area (sqft)" 
-              name="GarageArea" 
-              value={formData.GarageArea} 
+              label="Garage Cars" 
+              name="GarageCars" 
+              value={formData.GarageCars}
               onChange={handleChange}
               min="0"
               icon={<Car className="h-5 w-5 text-blue-400" />}
             />
 
             <FormField 
-              label="Pool Area (sqft)" 
-              name="PoolArea" 
-              value={formData.PoolArea} 
+              label="Garage Area (sqft)" 
+              name="GarageArea" 
+              value={formData.GarageArea}
               onChange={handleChange}
               min="0"
-              icon={<WavesLadder className="h-5 w-5 text-blue-400" />}
+              icon={<Car className="h-5 w-5 text-blue-400" />}
             />
 
             <FormField 
-              label="Neighborhood" 
-              name="Neighborhood" 
-              value={formData.Neighborhood} 
+              label="Total Basement Area (sqft)" 
+              name="TotalBsmtSF" 
+              value={formData.TotalBsmtSF}
               onChange={handleChange}
-              options={NEIGHBORHOODS}
-              icon={<Map className="h-5 w-5 text-blue-400" />}
+              icon={<Bookmark className="h-5 w-5 text-blue-400" />}
             />
 
             <FormField 
-              label="House Style" 
-              name="HouseStyle" 
-              value={formData.HouseStyle} 
+              label="First Floor Area (sqft)" 
+              name="FirstFlrSF" 
+              value={formData.FirstFlrSF}
               onChange={handleChange}
-              options={HOUSE_STYLES}
-              icon={<PenTool className="h-5 w-5 text-blue-400" />}
+              icon={<Building2 className="h-5 w-5 text-blue-400" />}
             />
 
             <FormField 
-              label="Overall Quality" 
-              name="OverallQual" 
-              value={formData.OverallQual} 
+              label="Second Floor Area (sqft)" 
+              name="SecondFlrSF" 
+              value={formData.SecondFlrSF}
               onChange={handleChange}
-              options={QUALITY_RATINGS}
-              icon={<Star className="h-5 w-5 text-blue-400" />}
+              icon={<Building2 className="h-5 w-5 text-blue-400" />}
             />
 
             <FormField 
-              label="Overall Condition" 
-              name="OverallCond" 
-              value={formData.OverallCond} 
+              label="Open Porch Area (sqft)" 
+              name="OpenPorchSF" 
+              value={formData.OpenPorchSF}
               onChange={handleChange}
-              options={CONDITION_RATINGS}
-              icon={<Hammer className="h-5 w-5 text-blue-400" />}
+              min="0"
+              icon={<Home className="h-5 w-5 text-blue-400" />}
+            />
+
+            <FormField 
+              label="Wood Deck Area (sqft)" 
+              name="WoodDeckSF" 
+              value={formData.WoodDeckSF}
+              onChange={handleChange}
+              min="0"
+              icon={<Square className="h-5 w-5 text-blue-400" />}
             />
           </div>
 
