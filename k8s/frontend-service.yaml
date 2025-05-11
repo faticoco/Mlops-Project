@@ -8,8 +8,8 @@ spec:
   selector:
     app: house-pred-frontend
   ports:
-  - port: 5173
-    targetPort: 5173
+  - port: 3000
+    targetPort: 3000
     protocol: TCP
     name: http
   type: NodePort  # Exposes the service externally
