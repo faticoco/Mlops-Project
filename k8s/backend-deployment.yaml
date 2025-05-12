@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: house-pred-backend
+  labels:
+    app: house-pred-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: house-pred-backend
+  template:
+    metadata:
+      labels:
+        app: house-pred-backend
+    spec:
+      containers:
+      - name: house-pred-backend
+        image: ahmed93560/house-pred-backend:latest
+        ports:
+        - containerPort: 8000
+        resources:
+          limits:
+            cpu: "1"
+            memory: "512Mi"
+          requests:
+            cpu: "0.5"
+            memory: "256Mi"
+        env:
+        - name: MLFLOW_TRACKING_URI
+          value: "http://host.minikube.internal:5000"  # Adjust if your MLflow service has a different name
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30

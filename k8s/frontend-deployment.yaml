@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: house-pred-frontend
+  labels:
+    app: house-pred-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: house-pred-frontend
+  template:
+    metadata:
+      labels:
+        app: house-pred-frontend
+    spec:
+      containers:
+      - name: house-pred-frontend
+        image: ahmed93560/house-pred-frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NEXT_PUBLIC_API_URL
+          value: "http://house-pred-backend-service:8000"  # Points to the backend service
+       
